@@ -1,0 +1,82 @@
+name: 🔧 Fix Bot Structure & Generate Lockfile
+
+on:
+  workflow_dispatch:   # Bisa dijalankan manual dari GitHub
+  push:
+    branches: [ main ] # Atau otomatis jalan saat push ke main
+
+permissions:
+  contents: write      # Izinkan workflow menulis ke repositori
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} # Token otomatis
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 📦 Ensure baileys-bot folder and move files
+        run: |
+          # Buat folder baileys-bot jika belum ada
+          mkdir -p baileys-bot
+
+          # Pindahkan file ke baileys-bot jika ada di root
+          if [ -f "package.json" ] && [ ! -f "baileys-bot/package.json" ]; then
+            mv package.json baileys-bot/
+          fi
+          if [ -f "index.js" ] && [ ! -f "baileys-bot/index.js" ]; then
+            mv index.js baileys-bot/
+          fi
+          if [ -f ".env.example" ] && [ ! -f "baileys-bot/.env.example" ]; then
+            mv .env.example baileys-bot/
+          fi
+
+          # Hapus file duplikat di root jika sudah dipindah
+          rm -f package.json index.js .env.example 2>/dev/null || true
+
+      - name: 🔑 Generate package-lock.json
+        run: |
+          cd baileys-bot
+          # Jika package.json belum ada, buat minimal
+          if [ ! -f "package.json" ]; then
+            cat > package.json <<EOF
+          {
+            "name": "baileys-qris-bot",
+            "version": "1.0.0",
+            "main": "index.js",
+            "scripts": {
+              "start": "node index.js"
+            },
+            "dependencies": {
+              "@whiskeysockets/baileys": "^6.7.0",
+              "axios": "^1.6.0",
+              "express": "^4.18.2",
+              "qrcode-terminal": "^0.12.0"
+            }
+          }
+          EOF
+          fi
+          # Generate package-lock.json
+          npm install --package-lock-only
+          cd ..
+
+      - name: ✅ Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add baileys-bot/
+          # Hanya commit jika ada perubahan
+          if ! git diff --staged --quiet; then
+            git commit -m "🔧 auto: fix bot structure and add package-lock.json"
+            git push
+          else
+            echo "✅ Tidak ada perubahan yang perlu di-commit."
+          fi
