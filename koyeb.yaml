@@ -1,0 +1,26 @@
+name: qris-wa-bot
+services:
+  - name: baileys-bot
+    type: web
+    git:
+      repository: amirudin533/QRis-wa-bot-koyeb
+      branch: main
+      build_dir: baileys-bot   # 👈 INI KUNCI UTAMA!
+    build:
+      builder: buildpack
+      run: npm start
+    ports:
+      - port: 3000
+    routes:
+      - path: /
+        port: 3000
+    scaling:
+      min: 0
+      max: 1
+    env:
+      - name: BOT_SECRET
+        value: "rahasia_super_kuat_$(openssl rand -hex 8)" # ganti manual atau pakai secret
+    volumes:
+      - name: auth_volume
+        path: /app/auth_info
+        size: 1
